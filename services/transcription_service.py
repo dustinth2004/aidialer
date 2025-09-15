@@ -8,7 +8,13 @@ from services.event_emmiter import EventEmitter
 logger = get_logger("Transcription")
 
 class TranscriptionService(EventEmitter):
+    """
+    Manages the real-time transcription of audio using the Deepgram API.
+    """
     def __init__(self):
+        """
+        Initializes the TranscriptionService.
+        """
         super().__init__()
         self.client = DeepgramClient(os.getenv("DEEPGRAM_API_KEY"))
         self.deepgram_live = None
@@ -17,12 +23,27 @@ class TranscriptionService(EventEmitter):
         self.stream_sid = None
 
     def set_stream_sid(self, stream_id):
+        """
+        Sets the stream SID for the current transcription.
+
+        Args:
+            stream_id (str): The stream SID.
+        """
         self.stream_sid = stream_id
 
     def get_stream_sid(self):
+        """
+        Gets the current stream SID.
+
+        Returns:
+            str: The current stream SID.
+        """
         return self.stream_sid
 
     async def connect(self):
+        """
+        Connects to the Deepgram live transcription service.
+        """
         self.deepgram_live = self.client.listen.asynclive.v("1")
         await self.deepgram_live.start(LiveOptions(
             model="nova-2", 
@@ -44,6 +65,13 @@ class TranscriptionService(EventEmitter):
         self.deepgram_live.on(LiveTranscriptionEvents.UtteranceEnd, self.handle_utterance_end)
 
     async def handle_utterance_end(self, self_obj, utterance_end):
+        """
+        Handles the utterance end event from Deepgram.
+
+        Args:
+            self_obj: The object that triggered the event.
+            utterance_end: The utterance end event data.
+        """
         try:
             if not self.speech_final:
                 logger.info(f"UtteranceEnd received before speech was final, emit the text collected so far: {self.final_result}")
@@ -58,6 +86,16 @@ class TranscriptionService(EventEmitter):
             e.print_stack()
 
     async def handle_transcription(self, self_obj, result):
+        """
+        Handles transcription results from Deepgram.
+
+        This method processes both interim and final transcription results,
+        and emits 'utterance' and 'transcription' events accordingly.
+
+        Args:
+            self_obj: The object that triggered the event.
+            result: The transcription result data.
+        """
         try:
             alternatives = result.channel.alternatives if hasattr(result, 'channel') else []
             text = alternatives[0].transcript if alternatives else ""
@@ -80,24 +118,61 @@ class TranscriptionService(EventEmitter):
 
             
     async def handle_error(self, self_obj, error):
+        """
+        Handles errors from the Deepgram connection.
+
+        Args:
+            self_obj: The object that triggered the event.
+            error: The error data.
+        """
         logger.error(f"Deepgram error: {error}")
         self.is_connected = False
     
     async def handle_warning(self, self_obj, warning):
+        """
+        Handles warnings from the Deepgram connection.
+
+        Args:
+            self_obj: The object that triggered the event.
+            warning: The warning data.
+        """
         logger.info('Deepgram warning:', warning)
 
     async def handle_metadata(self, self_obj, metadata):
+        """
+        Handles metadata from the Deepgram connection.
+
+        Args:
+            self_obj: The object that triggered the event.
+            metadata: The metadata.
+        """
         logger.info('Deepgram metadata:', metadata)
 
     async def handle_close(self, self_obj, close):
+        """
+        Handles the close event from the Deepgram connection.
+
+        Args:
+            self_obj: The object that triggered the event.
+            close: The close event data.
+        """
         logger.info("Deepgram connection closed")
         self.is_connected = False
 
     async def send(self, payload: bytes):
+        """
+        Sends audio data to the Deepgram service.
+
+        Args:
+            payload (bytes): The audio data to send.
+        """
         if self.deepgram_live:            
             await self.deepgram_live.send(payload)
     
     async def disconnect(self):
+        """
+        Disconnects from the Deepgram service.
+        """
         if self.deepgram_live:
             await self.deepgram_live.finish()
             self.deepgram_live = None

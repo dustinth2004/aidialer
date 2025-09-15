@@ -9,9 +9,21 @@ dotenv.load_dotenv(verbose=True)
 st.set_page_config(page_title="AI Dialer", page_icon="📞", layout="wide")
 
 def display_call_interface():
+    """
+    Displays the phone number input field in the Streamlit sidebar.
+
+    Returns:
+        str: The phone number entered by the user.
+    """
     return st.text_input("Phone Number (format: +1XXXXXXXXXX)", value=os.getenv("YOUR_NUMBER") or "")
 
 def fetch_all_transcripts():
+    """
+    Fetches all call transcripts from the backend server.
+
+    Returns:
+        list: A list of call transcripts, or an empty list if an error occurs.
+    """
     try:
         response = requests.get(f"https://{os.getenv('SERVER')}/all_transcripts")
         return response.json().get('transcripts', [])
@@ -92,6 +104,15 @@ with st.sidebar:
 
 # Call selection controls
 def fetch_recording_info(call_sid):
+    """
+    Fetches recording information for a specific call.
+
+    Args:
+        call_sid (str): The SID of the call to fetch recording info for.
+
+    Returns:
+        dict or None: A dictionary with the recording URL and duration, or None if not found.
+    """
     try:
         response = requests.get(f"https://{os.getenv('SERVER')}/call_recording/{call_sid}")
         if media_url := response.json().get('recording_url'):
@@ -107,6 +128,11 @@ def fetch_recording_info(call_sid):
     return None
 
 def on_call_selector_change():
+    """
+    Callback function for when the call selector changes.
+
+    Fetches the recording info for the selected call.
+    """
     if st.session_state.call_selector != "Current Call":
         selected_transcript = next((t for t in st.session_state.all_transcripts if f"Call {t['call_sid']}" == st.session_state.call_selector), None)
         if selected_transcript:
@@ -164,6 +190,14 @@ with st.spinner("Loading recording and transcript..."):
 
 if st.session_state.call_active:
     def update_call_info():
+        """
+        Updates the call information by fetching the latest status and transcript.
+
+        This function is called periodically when a call is active to keep the UI up to date.
+
+        Returns:
+            bool: True if the call is still active, False otherwise.
+        """
         try:
             status = requests.get(f"https://{os.getenv('SERVER')}/call_status/{st.session_state.call_sid}").json().get('status')
             if status not in ['in-progress', 'ringing']:
