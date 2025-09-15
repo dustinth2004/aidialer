@@ -29,6 +29,15 @@ call_contexts = {}
 # First route that gets called by Twilio when call is initiated
 @app.post("/incoming")
 async def incoming_call() -> HTMLResponse:
+    """
+    Handles incoming calls from Twilio.
+
+    This endpoint is the first point of contact for Twilio when a call is initiated.
+    It generates a TwiML response to connect the call to a WebSocket stream.
+
+    Returns:
+        HTMLResponse: A TwiML response to stream the call.
+    """
     server = os.environ.get("SERVER")
     response = VoiceResponse()
     connect = Connect()
@@ -39,7 +48,15 @@ async def incoming_call() -> HTMLResponse:
 
 @app.get("/call_recording/{call_sid}")
 async def get_call_recording(call_sid: str):
-    """Get the recording URL for a specific call."""
+    """
+    Get the recording URL for a specific call.
+
+    Args:
+        call_sid (str): The SID of the call to retrieve the recording for.
+
+    Returns:
+        dict: A dictionary containing the recording URL or an error message.
+    """
     recording = get_twilio_client().calls(call_sid).recordings.list()
     if recording:
         print({"recording_url": f"https://api.twilio.com/{recording[0].uri}"})
@@ -50,6 +67,15 @@ async def get_call_recording(call_sid: str):
 # Websocket route for Twilio to get media stream
 @app.websocket("/connection")
 async def websocket_endpoint(websocket: WebSocket):
+    """
+    Handles the WebSocket connection for a live call.
+
+    This function manages the real-time audio stream, transcription,
+    language model processing, and text-to-speech generation.
+
+    Args:
+        websocket (WebSocket): The WebSocket connection object.
+    """
     await websocket.accept()
 
     llm_service_name = os.getenv("LLM_SERVICE", "openai")
@@ -179,12 +205,29 @@ async def websocket_endpoint(websocket: WebSocket):
         await transcription_service.disconnect()
 
 def get_twilio_client():
+    """
+    Initializes and returns a Twilio client.
+
+    The client is configured using environment variables for the Account SID and Auth Token.
+
+    Returns:
+        Client: An instance of the Twilio REST client.
+    """
     return Client(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
 
 # API route to initiate a call via UI
 @app.post("/start_call")
 async def start_call(request: Dict[str, str]):
-    """Initiate a call using Twilio with optional system and initial messages."""
+    """
+    Initiates a call using Twilio with optional system and initial messages.
+
+    Args:
+        request (Dict[str, str]): A dictionary containing the 'to_number',
+                                 'system_message', and 'initial_message'.
+
+    Returns:
+        dict: A dictionary with the call SID or an error message.
+    """
     to_number = request.get("to_number")
     system_message = request.get("system_message")
     initial_message = request.get("initial_message")
@@ -221,7 +264,15 @@ async def start_call(request: Dict[str, str]):
 # API route to get the status of a call
 @app.get("/call_status/{call_sid}")
 async def get_call_status(call_sid: str):
-    """Get the status of a call."""
+    """
+    Get the status of a specific call.
+
+    Args:
+        call_sid (str): The SID of the call to check.
+
+    Returns:
+        dict: A dictionary with the call status or an error message.
+    """
     try:
         client = get_twilio_client()
         call = client.calls(call_sid).fetch()
@@ -233,7 +284,15 @@ async def get_call_status(call_sid: str):
 # API route to end a call
 @app.post("/end_call")
 async def end_call(request: Dict[str, str]):
-    """Get the status of a call."""
+    """
+    Ends a specific call.
+
+    Args:
+        request (Dict[str, str]): A dictionary containing the 'call_sid'.
+
+    Returns:
+        dict: A dictionary with a success status or an error message.
+    """
     try:
         call_sid = request.get("call_sid")
         client = get_twilio_client()
@@ -246,7 +305,15 @@ async def end_call(request: Dict[str, str]):
 # API call to get the transcript for a specific call
 @app.get("/transcript/{call_sid}")
 async def get_transcript(call_sid: str):
-    """Get the entire transcript for a specific call."""
+    """
+    Get the entire transcript for a specific call.
+
+    Args:
+        call_sid (str): The SID of the call to retrieve the transcript for.
+
+    Returns:
+        dict: A dictionary with the transcript or an error message.
+    """
     call_context = call_contexts.get(call_sid)
 
     if not call_context:
@@ -258,7 +325,12 @@ async def get_transcript(call_sid: str):
 # API route to get all call transcripts
 @app.get("/all_transcripts")
 async def get_all_transcripts():
-    """Get a list of all current call transcripts."""
+    """
+    Get a list of all current call transcripts.
+
+    Returns:
+        dict: A dictionary containing a list of all transcripts or an error message.
+    """
     try:
         transcript_list = []
         for call_sid, context in call_contexts.items():

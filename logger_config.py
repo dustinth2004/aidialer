@@ -14,4 +14,13 @@ logger.add(
 )
 
 def get_logger(name):
+    """
+    Returns a logger instance with the specified name.
+
+    Args:
+        name (str): The name to bind to the logger.
+
+    Returns:
+        loguru.Logger: A logger instance with the given name.
+    """
     return logger.bind(name=name)

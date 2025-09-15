@@ -111,6 +111,41 @@ python app.py
 streamlit ui/streamlit_app.py
 ```
 
+## Architecture Overview
+
+The application is built around a FastAPI web server that orchestrates several services to handle real-time AI-powered phone calls.
+
+1.  **Incoming Call**: A call initiated to the Twilio number triggers a POST request to the `/incoming` endpoint.
+2.  **WebSocket Connection**: The FastAPI server responds with TwiML instructions to establish a WebSocket connection to the `/connection` endpoint.
+3.  **Media Streaming**: Twilio starts streaming the call's audio data to the WebSocket.
+4.  **Transcription**: The `TranscriptionService` receives the audio stream and uses a real-time transcription service (like Deepgram) to convert speech to text. It emits `utterance` events for partial transcriptions and `transcription` events for final transcriptions.
+5.  **LLM Processing**: The `LLMService` listens for `transcription` events. It sends the transcribed text, along with the conversation history, to a large language model (like OpenAI's GPT or Anthropic's Claude).
+6.  **Text-to-Speech (TTS)**: The `LLMService` emits `llmreply` events with the LLM's response. The `TTSService` listens for these events and generates audio from the text using a TTS service (like ElevenLabs or Deepgram).
+7.  **Audio Streaming back to Caller**: The `TTSService` emits `speech` events with the generated audio. The `StreamService` buffers this audio and sends it back to Twilio through the WebSocket, which is then played to the caller.
+8.  **Interrupt Handling**: If the user speaks while the AI is talking, the `TranscriptionService` detects this as an `utterance`. The `app` then sends a `clear` event to Twilio to stop the currently playing audio, allowing for a natural, interruptible conversation.
+
+This event-driven, streaming architecture allows for low-latency responses and a more human-like conversation flow.
+
+## Project Structure
+
+-   `app.py`: The main FastAPI application file. It defines all the API endpoints and orchestrates the different services.
+-   `logger_config.py`: Configures the logging for the application using Loguru.
+-   `requirements.txt`: Lists the Python dependencies for the project.
+-   `.env.example`: An example environment file. Copy this to `.env` and fill in your credentials.
+-   `settings.json`: Configuration for the LLM functions.
+-   `functions/`: Contains the functions that the LLM can call, such as `transfer_call` and `end_call`.
+    -   `function_manifest.py`: A manifest of the available functions for the LLM.
+-   `services/`: Contains the core services of the application.
+    -   `call_context.py`: A class to store the context of a call.
+    -   `event_emmiter.py`: A simple event emitter class.
+    -   `llm_service.py`: Handles interaction with the LLM (OpenAI or Anthropic).
+    -   `stream_service.py`: Manages the audio stream to and from Twilio.
+    -   `transcription_service.py`: Handles real-time speech-to-text transcription.
+    -   `tts_service.py`: Handles text-to-speech synthesis.
+-   `ui/`: Contains the Streamlit frontend application.
+    -   `streamlit_app.py`: The main file for the Streamlit UI.
+-   `examples/`: Contains example files, such as a sample call recording and a screenshot of the UI.
+
 ## Contribution
 Contributions are welcome! Please feel free to submit a Pull Request.
 

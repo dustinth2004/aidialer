@@ -3,6 +3,19 @@ from twilio.rest import Client
 import asyncio
 
 async def transfer_call(context, args):
+    """
+    Transfers the current Twilio call to another number.
+
+    This function retrieves the call SID from the context and uses the Twilio API
+    to transfer the call to a pre-configured number.
+
+    Args:
+        context: The call context object, containing call-specific information.
+        args: A dictionary of arguments for the function (not used in this function).
+
+    Returns:
+        str: A message indicating the result of the transfer operation.
+    """
     # Retrieve the active call using the CallSid
     account_sid = os.environ['TWILIO_ACCOUNT_SID']
     auth_token = os.environ['TWILIO_AUTH_TOKEN']
